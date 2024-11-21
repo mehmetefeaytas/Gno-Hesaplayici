@@ -1,67 +1,67 @@
 {
-    "Ata101": {
+    "ders1": {
         "notlar": {
             "Vize": 0.4,
             "Final": 0.6
         },
         "kredi": 2
     },
-    "Fiz101": {
+    "ders2": {
         "notlar": {
             "Vize": 0.4,
             "Final": 0.6
         },
         "kredi": 3
     },
-    "\u0130K101": {
+    "ders3": {
         "notlar": {
-            "\u00d6dev": 1.0
+            "Ödev": 1.0
         },
         "kredi": 1
     },
-    "K\u0130M111": {
+    "ders4": {
         "notlar": {
             "Vize": 0.4,
             "Final": 0.6
         },
         "kredi": 4
     },
-    "Mat111": {
+    "ders5": {
         "notlar": {
             "Vize": 0.5,
             "Final": 0.5
         },
         "kredi": 5
     },
-    "T\u00fcr101": {
+    "ders6": {
         "notlar": {
             "Vize": 0.4,
             "Final": 0.6
         },
         "kredi": 2
     },
-    "Univ101": {
+    "ders7": {
         "notlar": {
-            "\u00d6dev": 1.0
+            "Ödev": 1.0
         },
         "kredi": 1
     },
-    "Univ102": {
+    "ders8": {
         "notlar": {
-            "\u00d6dev": 1.0
+            "Ödev": 1.0
         },
         "kredi": 0
     },
-    "Blg102": {
+    "ders9": {
         "notlar": {
             "Vize": 0.35,
-            "\u00d6dev": 0.1,
+            "Ödev": 0.1,
             "Devam": 0.05,
             "Final": 0.5
         },
         "kredi": 2
     },
-    "Blg101": {
+    "ders10": {
         "notlar": {
             "Vize": 0.5,
             "Final": 0.5
