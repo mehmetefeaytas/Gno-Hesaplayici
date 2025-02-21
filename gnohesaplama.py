@@ -1,38 +1,58 @@
 import matplotlib.pyplot as plt
 import json
+import logging
+
+# Logger ayarları
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+file_handler = logging.FileHandler('program_logs.log')
+file_handler.setLevel(logging.INFO)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.ERROR)
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 # Ders bilgileri
 dersler = {
     "Ata101": {"notlar": {"Vize": 0.4, "Final": 0.6}, "kredi": 2},
-    "Blg101": {"notlar": {"Vize": 0.35, "Ödev": 0.1, "Devam": 0.05, "Final": 0.5}, "kredi": 3},
-    "Blg111": {"notlar": {"Vize": 0.5, "Final": 0.5}, "kredi": 3},
+    "Blg102": {"notlar": {"Vize": 0.35, "Ödev": 0.1, "Devam": 0.05, "Final": 0.5}, "kredi": 3},
+    "Blg101": {"notlar": {"Vize": 0.5, "Final": 0.5}, "kredi": 3},
     "Fiz101": {"notlar": {"Vize": 0.4, "Final": 0.6}, "kredi": 3},
     "İK101": {"notlar": {"Ödev": 1.0}, "kredi": 1},
     "KİM111": {"notlar": {"Vize": 0.4, "Final": 0.6}, "kredi": 4},
     "Mat111": {"notlar": {"Vize": 0.5, "Final": 0.5}, "kredi": 5},
     "Tür101": {"notlar": {"Vize": 0.4, "Final": 0.6}, "kredi": 2},
     "Univ101": {"notlar": {"Ödev": 1.0}, "kredi": 1},
-    "Univ102": {"notlar": {"Ödev": 1.0}, "kredi": 1},
-    "Blg102": {"notlar": {"Vize": 0.4, "Final": 0.6}, "kredi": 2}
+    "Univ102": {"notlar": {"Ödev": 1.0}, "kredi": 0},
 }
 
-# Notlara göre harf karşılıkları ve katsayıları
-harf_notlari = {
-    (88, 100): ("AA", 4.0),
-    (81, 87): ("BA", 3.5),
-    (76, 80): ("BB", 3.0),
-    (65, 75): ("CB", 2.5),
-    (55, 64): ("CC", 2.0),
-    (45, 54): ("DC", 1.5),
-    (40, 44): ("DD", 1.0),
-    (30, 39): ("FD", 0.5),
-    (0, 29): ("FF", 0)
-}
+# Harf notları listesi: (alt limit, üst limit, harf, katsayı)
+# Üst limit dahil değil
+harf_notlari = [
+    (88, 101, "AA", 4.0),
+    (81, 88, "BA", 3.5),
+    (76, 81, "BB", 3.0),
+    (65, 76, "CB", 2.5),
+    (55, 65, "CC", 2.0),
+    (45, 55, "DC", 1.5),
+    (40, 45, "DD", 1.0),
+    (30, 40, "FD", 0.5),
+    (0, 30, "FF", 0)
+]
 
 # Notları girme fonksiyonu
 def notlari_al():
+    logger.info('Notları girme fonksiyonu çağrıldı.')
     ogrenci_notlari = {}
     for ders, bilgiler in dersler.items():
+        logger.info(f'{ders} için notları giriliyor.')
         print(f"{ders} için notlarınızı girin:")
         ders_notlari = {}
         for kategori in bilgiler["notlar"]:
@@ -40,27 +60,32 @@ def notlari_al():
                 try:
                     not_girisi = input(f"  {kategori} notu (0-100 arası veya 'G' girin, geri dönmek için 'q' girin): ")
                     if not_girisi == 'q':
+                        logger.warning('Not girişi iptal edildi.')
                         return None
                     if not_girisi == 'G':
-                        ders_notlari[kategori] = 'G'
+                        ders_notlari[kategori.strip()] = 'G'
                         break
                     not_girisi = float(not_girisi)
                     if 0 <= not_girisi <= 100:
-                        ders_notlari[kategori] = not_girisi
+                        ders_notlari[kategori.strip()] = not_girisi
                         break
                     else:
+                        logger.error('Geçersiz not girişi.')
                         print("Geçersiz giriş! Lütfen 0 ile 100 arasında bir not girin.")
                 except ValueError:
+                    logger.error('Geçersiz giriş.')
                     print("Geçersiz giriş! Lütfen sayısal bir değer girin.")
         ogrenci_notlari[ders] = ders_notlari
+    logger.info('Notları girme fonksiyonu başarıyla tamamlandı.')
     return ogrenci_notlari
 
-# Harf notunu bulma fonksiyonu
+# Harf notunu bulma fonksiyonu (hesaplanan ders not ortalaması yuvarlanıyor)
 def harf_notu_bul(not_ortalamasi):
-    for aralik, harf_katsayi in harf_notlari.items():
-        if aralik[0] <= not_ortalamasi <= aralik[1]:
-            return harf_katsayi
-    return ("FF", 0)
+    not_ortalamasi = round(not_ortalamasi)  # Tam sayıya yuvarla (örneğin 39.5 → 40)
+    for low, high, harf, katsayi in harf_notlari:
+        if not_ortalamasi >= low and not_ortalamasi < high:
+            return harf, katsayi
+    return "FF", 0
 
 # Ders notunu hesaplama fonksiyonu
 def ders_notu_hesapla(notlar, yuzdeler):
@@ -78,14 +103,17 @@ def gno_hesapla(ogrenci_notlari, eski_agno=None, toplam_akts=None):
     toplam_puan, toplam_kredi = 0, 0
     for ders, bilgiler in dersler.items():
         notlar = ogrenci_notlari.get(ders, {})
+        # Eğer derse ait notlar yoksa veya tüm notlar "G" ise, dersi hesaplamaya dahil etme.
+        if not notlar or all(n == 'G' for n in notlar.values()):
+            continue
         yuzdeler = bilgiler["notlar"]
         kredi = bilgiler["kredi"]
         ders_notu = ders_notu_hesapla(notlar, yuzdeler)
-        _, katsayi = harf_notu_bul(ders_notu)
+        harf, katsayi = harf_notu_bul(ders_notu)
         toplam_puan += katsayi * kredi
         toplam_kredi += kredi
 
-    gno = toplam_puan / toplam_kredi
+    gno = toplam_puan / toplam_kredi if toplam_kredi > 0 else 0
     if eski_agno is not None and toplam_akts is not None:
         agno = (eski_agno * toplam_akts + gno * toplam_kredi) / (toplam_akts + toplam_kredi)
         return gno, agno, toplam_kredi
@@ -98,7 +126,7 @@ def hedef_gno_icin_ortalama_hesapla(mevcut_gno, mevcut_kredi, hedef_gno, yeni_de
     yeni_ders_ortalama = (gereken_toplam_puan - mevcut_toplam_puan) / yeni_ders_kredisi
     return yeni_ders_ortalama
 
-# Hedef GNO'ya ulaşmak için yapılması gereken GNO hesaplama aracı
+# Hedef GNO hesaplama aracı
 def hedef_gno_hesaplama_araci():
     mevcut_gno = float(input("Mevcut GNO: "))
     mevcut_kredi = int(input("Mevcut Kredi: "))
@@ -129,7 +157,7 @@ def sonuclari_dosyaya_kaydet(gno, agno, ogrenci_notlari):
             ders_notu = ders_notu_hesapla(notlar, yuzdeler)
             harf, katsayi = harf_notu_bul(ders_notu)
             dosya.write(f"{ders}: {ders_notu:.2f} ({harf}) - Kredi: {kredi}, Katsayı: {katsayi}\n")
-        
+            dosya.write(f"  Notlar: {notlar}\n")
         dosya.write(f"\nGNO: {gno:.2f}\n")
         if agno is not None:
             dosya.write(f"AGNO: {agno:.2f}\n")
@@ -211,7 +239,7 @@ def ders_puanlama_guncelle():
                             return
                         yeni_yuzde = float(yeni_yuzde)
                         if 0 <= yeni_yuzde <= 1:
-                            yeni_yuzdeler[kategori] = yeni_yuzde
+                            yeni_yuzdeler[kategori.strip()] = yeni_yuzde
                             break
                         else:
                             print("Geçersiz giriş! Lütfen 0 ile 1 arasında bir değer girin.")
@@ -245,7 +273,7 @@ def ders_duzenle():
                 if kategori == 'q':
                     break
                 yuzde = float(input(f"{kategori} yüzdesi (0-1 arası): "))
-                notlar[kategori] = yuzde
+                notlar[kategori.strip()] = yuzde
             dersler[ders_adi] = {"notlar": notlar, "kredi": kredi}
             print(f"{ders_adi} dersi eklendi.")
         elif secim == "2":
@@ -284,7 +312,7 @@ def dersleri_sifirla():
             if kategori == 'q':
                 break
             yuzde = float(input(f"{kategori} yüzdesi (0-1 arası): "))
-            notlar[kategori] = yuzde
+            notlar[kategori.strip()] = yuzde
         dersler[ders_adi] = {"notlar": notlar, "kredi": kredi}
     print("Dersler ve krediler sıfırlandı ve yeniden yazıldı.")
 
@@ -296,9 +324,12 @@ def dersleri_kaydet():
 
 # İnteraktif menü
 def menu():
+    logger.info('İnteraktif menü çağrıldı.')
     agno_listesi = []
     ogrenci_notlari = {}
+    gno = None  # GNO başlangıçta tanımsız
     while True:
+        logger.info('Menü seçenekleri gösteriliyor.')
         print("\n=== Ana Menü ===")
         print("1. Notları Gir")
         print("2. GNO ve AGNO Hesapla")
@@ -343,6 +374,9 @@ def menu():
         elif secim == "5":
             agno_grafik(agno_listesi)
         elif secim == "6":
+            if gno is None:
+                print("Lütfen önce GNO hesaplayın (seçenek 2).")
+                continue
             hedef_gno = float(input("Hedef GNO: "))
             basari_tahmini(gno, hedef_gno)
         elif secim == "7":
@@ -364,87 +398,5 @@ def menu():
             print("Geçersiz seçenek. Lütfen tekrar deneyin.")
 
 # Programı başlat
-menu()
-import logging
-
-# Create a logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Create a file handler
-file_handler = logging.FileHandler('program_logs.log')
-file_handler.setLevel(logging.INFO)
-
-# Create a console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.ERROR)
-
-# Create a formatter and set it for the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Add the handlers to the logger
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
-
-# ... (rest of the code remains the same)
-
-# Notları girme fonksiyonu
-def notlari_al():
-    logger.info('Notları girme fonksiyonu çağrıldı.')
-    ogrenci_notlari = {}
-    for ders, bilgiler in dersler.items():
-        logger.info(f'{ders} için notları giriliyor.')
-        print(f"{ders} için notlarınızı girin:")
-        ders_notlari = {}
-        for kategori in bilgiler["notlar"]:
-            while True:
-                try:
-                    not_girisi = input(f"  {kategori} notu (0-100 arası veya 'G' girin, geri dönmek için 'q' girin): ")
-                    if not_girisi == 'q':
-                        logger.warning('Not girişi iptal edildi.')
-                        return None
-                    if not_girisi == 'G':
-                        ders_notlari[kategori] = 'G'
-                        break
-                    not_girisi = float(not_girisi)
-                    if 0 <= not_girisi <= 100:
-                        ders_notlari[kategori] = not_girisi
-                        break
-                    else:
-                        logger.error('Geçersiz not girişi.')
-                        print("Geçersiz giriş! Lütfen 0 ile 100 arasında bir not girin.")
-                except ValueError:
-                    logger.error('Geçersiz giriş.')
-                    print("Geçersiz giriş! Lütfen sayısal bir değer girin.")
-        ogrenci_notlari[ders] = ders_notlari
-    logger.info('Notları girme fonksiyonu başarıyla tamamlandı.')
-    return ogrenci_notlari
-
-# ... (rest of the code remains the same)
-
-# İnteraktif menü
-def menu():
-    logger.info('İnteraktif menü çağrıldı.')
-    agno_listesi = []
-    ogrenci_notlari = {}
-    while True:
-        logger.info('Menü seçenekleri gösteriliyor.')
-        print("\n=== Ana Menü ===")
-        print("1. Notları Gir")
-        print("2. GNO ve AGNO Hesapla")
-        print("3. Ders Özeti Görüntüle")
-        print("4. Sonuçları Dosyaya Kaydet")
-        print("5. AGNO Grafik Gösterimi")
-        print("6. Başarı Tahmini")
-        print("7. Ders Kredilerini Güncelle")
-        print("8. Ders Puanlamasını Güncelle")
-        print("9. Ders Düzenle")
-        print("10. Dersleri Sıfırla ve Yeniden Yaz")
-        print("11. Tüm Dersleri Kaydet")
-        print("12. Hedef GNO Hesaplama Aracı")
-        print("13. Çıkış")
-        secim = input("Bir seçenek seçin: ")
-
-        # ... (rest of the code remains the same)
+if __name__ == "__main__":
+    menu()
